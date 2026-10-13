@@ -209,11 +209,6 @@ static int _bf_chain_check_rule(struct bf_chain *chain, struct bf_rule *rule)
         struct bf_matcher *matcher = bf_list_node_get_data(matcher_node);
         const struct bf_matcher_meta *meta;
 
-        // Track if the chain uses IPv6 nexthdr matcher.
-        if (bf_matcher_get_type(matcher) == BF_MATCHER_IP6_NEXTHDR &&
-            !rule->disabled)
-            chain->flags |= BF_FLAG(BF_CHAIN_STORE_NEXTHDR);
-
         // Ensure the matcher is compatible with the chain's hook.
         meta = bf_matcher_get_meta(bf_matcher_get_type(matcher));
         if (!meta) {

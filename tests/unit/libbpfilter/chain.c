@@ -189,9 +189,8 @@ static void apply_set_delta_updates_derived_state(void **state)
 
     assert_ok(bf_chain_apply_set_delta(chain, "set", delta_set, NULL));
     assert_false(rule->disabled);
-    assert_int_equal(
-        chain->flags,
-        BF_FLAGS(BF_CHAIN_LOG, BF_CHAIN_LOG_RATELIMIT, BF_CHAIN_STORE_NEXTHDR));
+    assert_int_equal(chain->flags,
+                     BF_FLAGS(BF_CHAIN_LOG, BF_CHAIN_LOG_RATELIMIT));
 
     assert_ok(bf_chain_apply_set_delta(chain, "set", NULL, delta_set));
     assert_true(rule->disabled);

@@ -14,6 +14,14 @@
 
 #define BF_IPV6_EXT_MAX_CHAIN 6
 
+/* Same as cgen/packet.c */
+#define BF_IPV6_EH_HOPOPTS(x) ((x) << 0)
+#define BF_IPV6_EH_ROUTING(x) ((x) << 1)
+#define BF_IPV6_EH_FRAGMENT(x) ((x) << 2)
+#define BF_IPV6_EH_AH(x) ((x) << 3)
+#define BF_IPV6_EH_DSTOPTS(x) ((x) << 4)
+#define BF_IPV6_EH_MH(x) ((x) << 5)
+
 __u8 bf_parse_ipv6(struct bf_runtime *ctx)
 {
     struct ipv6hdr *ip6hdr = ctx->l3_hdr;
@@ -22,32 +30,43 @@ __u8 bf_parse_ipv6(struct bf_runtime *ctx)
     ctx->l4_offset = ctx->l3_offset + sizeof(struct ipv6hdr);
 
     for (int i = 0; i < BF_IPV6_EXT_MAX_CHAIN; ++i) {
+        switch (next_hdr_type) {
+        case IPPROTO_HOPOPTS:
+        case IPPROTO_ROUTING:
+        case IPPROTO_FRAGMENT:
+        case IPPROTO_AH:
+        case IPPROTO_DSTOPTS:
+        case IPPROTO_MH:
+            break;
+        default:
+            // L4 protocol, even if its header is truncated
+            return next_hdr_type;
+        }
+
         struct ipv6_opt_hdr _ext;
-        struct ipv6_opt_hdr *ext =
+        const struct ipv6_opt_hdr * const ext =
             bpf_dynptr_slice(&ctx->dynptr, ctx->l4_offset, &_ext, sizeof(_ext));
         if (!ext)
             return 0;
 
-        switch (next_hdr_type) {
-        case IPPROTO_HOPOPTS:
-        case IPPROTO_DSTOPTS:
-        case IPPROTO_ROUTING:
-        case IPPROTO_MH:
-            next_hdr_type = ext->nexthdr;
-            ctx->l4_offset += (ext->hdrlen + 1) * 8;
-            break;
-        case IPPROTO_AH:
-            next_hdr_type = ext->nexthdr;
+        ctx->ipv6_eh |=
+            (BF_IPV6_EH_HOPOPTS(next_hdr_type == IPPROTO_HOPOPTS) |
+             BF_IPV6_EH_ROUTING(next_hdr_type == IPPROTO_ROUTING) |
+             BF_IPV6_EH_FRAGMENT(next_hdr_type == IPPROTO_FRAGMENT) |
+             BF_IPV6_EH_AH(next_hdr_type == IPPROTO_AH) |
+             BF_IPV6_EH_DSTOPTS(next_hdr_type == IPPROTO_DSTOPTS) |
+             BF_IPV6_EH_MH(next_hdr_type == IPPROTO_MH));
+
+        if (next_hdr_type == IPPROTO_AH) {
             ctx->l4_offset += (ext->hdrlen + 2) * 4;
-            break;
-        case IPPROTO_FRAGMENT:
+        } else if (next_hdr_type == IPPROTO_FRAGMENT) {
             // Fixed size: the second byte is reserved, not a length
-            next_hdr_type = ext->nexthdr;
             ctx->l4_offset += 8;
-            break;
-        default:
-            return next_hdr_type;
+        } else {
+            ctx->l4_offset += (ext->hdrlen + 1) * 8;
         }
+
+        next_hdr_type = ext->nexthdr;
     }
 
     return next_hdr_type;

@@ -893,11 +893,9 @@ int bf_program_generate(struct bf_program *program)
                                   BF_PROG_CTX_OFF(log_map)));
     }
 
-    // Zeroing IPv6 extension headers
-    if (program->runtime.chain->flags & BF_FLAG(BF_CHAIN_STORE_NEXTHDR)) {
-        EMIT(program, BPF_STX_MEM(BPF_DW, BPF_REG_10, BPF_REG_7,
-                                  BF_PROG_CTX_OFF(ipv6_eh)));
-    }
+    // The IPv6 parser only sets the bits of the extension headers it finds
+    EMIT(program,
+         BPF_STX_MEM(BPF_DW, BPF_REG_10, BPF_REG_7, BF_PROG_CTX_OFF(ipv6_eh)));
 
     r = program->runtime.ops->gen_inline_prologue(program);
     if (r)

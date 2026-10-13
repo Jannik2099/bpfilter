@@ -80,30 +80,18 @@ struct bpf_insn;
 enum bf_elfstub_id
 {
     /**
-     * Parse IPv6 extension headers.
+     * Parse IPv6 extension headers, and record the ones found in
+     * `bf_runtime.ipv6_eh` for the `ip6.nexthdr` matcher.
      *
      * `__u8 bf_parse_ipv6(struct bf_runtime *ctx)`
      *
      * **Parameters**
      * - `ctx`: address of the `bf_runtime` context of the program.
      *
-     * **Return** The L4 protocol on success, or 0 if the program fails creating
-     *            a dynamic pointer slice.
+     * **Return** The L4 protocol on success, or 0 if an extension header is
+     *            truncated.
      */
     BF_ELFSTUB_PARSE_IPV6_EH,
-
-    /**
-     * Parse IPv6 extension headers filling runtime context for ip6.nexthdr rule.
-     *
-     * `__u8 bf_parse_ipv6(struct bf_runtime *ctx)`
-     *
-     * **Parameters**
-     * - `ctx`: address of the `bf_runtime` context of the program.
-     *
-     * **Return** The L4 protocol on success, or 0 if the program fails creating
-     *            a dynamic pointer slice.
-     */
-    BF_ELFSTUB_PARSE_IPV6_NH,
 
     /**
      * Update the counters for a given rule.
