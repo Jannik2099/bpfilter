@@ -25,6 +25,13 @@ Netfilter chains are not attached to an interface: they follow the packet throug
 
 Instead of an interface index, a Netfilter chain needs priorities, and it needs two of them: this is how bpfilter is able to update the chain atomically. The chain will be attached to both the IPv4 and IPv6 families: your matchers decide which packets the rules apply to.
 
+Fragmented packets
+------------------
+
+An IP datagram bigger than the MTU of a link is split into fragments, and only the first fragment contains the L4 header. XDP and TC chains see each fragment. Netfilter chains see the fragments of the datagrams the host receives, except for IPv4 datagrams sent to the local host, which are reassembled before the local input hook. If conntrack is enabled, the kernel reassembles IPv4 and IPv6 datagrams before the Netfilter hooks. ``BF_HOOK_CGROUP_SKB_*`` chains see complete datagrams.
+
+When a chain sees fragments, the matchers reading the L4 header, such as ports, only match the first one. :doc:`../reference/matchers` describes how to filter them with ``meta.frag``.
+
 For a group of processes: cgroups
 ---------------------------------
 
