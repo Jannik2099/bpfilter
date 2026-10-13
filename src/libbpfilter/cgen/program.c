@@ -895,7 +895,7 @@ int bf_program_generate(struct bf_program *program)
 
     // The IPv6 parser only sets the bits of the extension headers it finds
     EMIT(program,
-         BPF_STX_MEM(BPF_DW, BPF_REG_10, BPF_REG_7, BF_PROG_CTX_OFF(ipv6_eh)));
+         BPF_STX_MEM(BPF_B, BPF_REG_10, BPF_REG_7, BF_PROG_CTX_OFF(ipv6_eh)));
 
     r = program->runtime.ops->gen_inline_prologue(program);
     if (r)

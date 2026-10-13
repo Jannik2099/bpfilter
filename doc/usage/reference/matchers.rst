@@ -198,7 +198,7 @@ IPv6
       - ``ip6.nexthdr``
       - ``eq``
       - ``$NEXT_HEADER``
-      - ``$NEXT_HEADER`` is a transport layer protocol name (e.g. "ICMP", case insensitive), an IPv6 extension header name, or a valid decimal or hexadecimal `internet protocol number`_.
+      - ``$NEXT_HEADER`` is a transport layer protocol name (e.g. "ICMP", case insensitive), an IPv6 extension header name, or a valid decimal or hexadecimal `internet protocol number`_. An extension header matches if the packet contains a header of this type, any other value is compared to the protocol found after the extension headers. Unlike nftables' ``ip6 nexthdr``, it doesn't compare the Next Header field of the IPv6 header.
     * - DSCP
       - ``ip6.dscp``
       - ``eq``
