@@ -69,7 +69,8 @@ int bf_stub_parse_l2_ethhdr(struct bf_program *program);
  *   @ref bf_stub_parse_l4_hdr might clear the L4 protocol ID register
  *
  * If the L3 protocol is not supported, this function skips the slice request,
- * the L3 protocol ID register is set to 0, and `bf_runtime.l4_proto` to 0.
+ * the L3 protocol ID register is set to 0, `bf_runtime.l3_hdr` to NULL, and
+ * `bf_runtime.l4_proto` to 0.
  *
  * @param program Program to emit instructions into.
  * @return 0 on success, or negative errno value on error.

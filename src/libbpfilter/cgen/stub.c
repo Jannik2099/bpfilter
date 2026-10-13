@@ -177,7 +177,8 @@ int bf_stub_parse_l3_hdr(struct bf_program *program)
 
     /* Store the size of the L3 protocol header in r4, depending on the protocol
      * ID stored in r7. If the protocol is not supported, we store 0 into r7
-     * and we skip the instructions below. */
+     * and NULL into bf_runtime.l3_hdr, and we skip the instructions below: the
+     * packet log stub reads bf_runtime.l3_hdr, it would be uninitialized. */
     {
         _clean_bf_swich_ struct bf_swich swich =
             bf_swich_get(program, BPF_REG_7);
@@ -186,7 +187,9 @@ int bf_stub_parse_l3_hdr(struct bf_program *program)
                           BPF_MOV64_IMM(BPF_REG_4, sizeof(struct iphdr)));
         EMIT_SWICH_OPTION(&swich, htobe16(ETH_P_IPV6),
                           BPF_MOV64_IMM(BPF_REG_4, sizeof(struct ipv6hdr)));
-        EMIT_SWICH_DEFAULT(&swich, BPF_MOV64_IMM(BPF_REG_7, 0));
+        EMIT_SWICH_DEFAULT(
+            &swich, BPF_MOV64_IMM(BPF_REG_7, 0),
+            BPF_ST_MEM(BPF_DW, BPF_REG_10, BF_PROG_CTX_OFF(l3_hdr), 0));
 
         r = bf_swich_generate(&swich);
         if (r)
