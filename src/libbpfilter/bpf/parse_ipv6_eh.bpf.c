@@ -12,7 +12,9 @@
 
 #include "cgen/runtime.h"
 
-#define BF_IPV6_EXT_MAX_CHAIN 6
+/* An extension header is at least 8 bytes long,
+ * and an IPv6 payload at most 65535 bytes. */
+#define BF_IPV6_EXT_MAX_CHAIN (65535 / 8)
 
 /* Same as cgen/packet.c */
 #define BF_IPV6_EH_HOPOPTS(x) ((x) << 0)
@@ -29,7 +31,7 @@ __u8 bf_parse_ipv6(struct bf_runtime *ctx)
 
     ctx->l4_offset = ctx->l3_offset + sizeof(struct ipv6hdr);
 
-    for (int i = 0; i < BF_IPV6_EXT_MAX_CHAIN; ++i) {
+    bpf_repeat (BF_IPV6_EXT_MAX_CHAIN) {
         switch (next_hdr_type) {
         case IPPROTO_HOPOPTS:
         case IPPROTO_ROUTING:
@@ -69,5 +71,6 @@ __u8 bf_parse_ipv6(struct bf_runtime *ctx)
         next_hdr_type = ext->nexthdr;
     }
 
-    return next_hdr_type;
+    // Only reached if the packet is bigger than an IPv6 payload can be
+    return 0;
 }
