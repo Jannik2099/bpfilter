@@ -67,10 +67,14 @@ int bf_stub_parse_l2_ethhdr(struct bf_program *program);
  *   the offset of the L4 header and the L4 protocol ID
  * - The L4 protocol ID is also stored in `bf_runtime.l4_proto`, as
  *   @ref bf_stub_parse_l4_hdr might clear the L4 protocol ID register
+ * - The fragmentation state of the packet is stored in `bf_runtime.frag`. For
+ *   a non-first fragment, the L4 protocol ID register is cleared after
+ *   `bf_runtime.l4_proto` is set: the fragment has no L4 header, so
+ *   @ref bf_stub_parse_l4_hdr and the L4 matchers skip it
  *
  * If the L3 protocol is not supported, this function skips the slice request,
- * the L3 protocol ID register is set to 0, `bf_runtime.l3_hdr` to NULL, and
- * `bf_runtime.l4_proto` to 0.
+ * the L3 protocol ID register is set to 0, `bf_runtime.l3_hdr` to NULL,
+ * `bf_runtime.l4_proto` to 0, and `bf_runtime.frag` to `BF_FRAG_NONE`.
  *
  * @param program Program to emit instructions into.
  * @return 0 on success, or negative errno value on error.

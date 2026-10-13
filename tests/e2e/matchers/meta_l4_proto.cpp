@@ -101,7 +101,18 @@ static void meta_l4_proto_eq(void **state)
                             bft::IPv6Fragment {.more = true} / bft::TCP {},
                         test->verdictAccept());
 
-    bft_assert_counter_eq("test_meta_l4_proto", 0, 2, -1);
+    /* Non-first fragments have no UDP header, but the protocol is
+     * still UDP -> DROP */
+    bft_assert_prog_run("test_meta_l4_proto", test->hook(),
+                        bft::Ethernet() / bft::IPv6 {} /
+                            bft::IPv6Fragment {.offset = 181} / bft::UDP {},
+                        test->verdictDrop());
+    bft_assert_prog_run("test_meta_l4_proto", test->hook(),
+                        bft::Ethernet() / bft::IPv4 {.frag_offset = 181} /
+                            bft::UDP {},
+                        test->verdictDrop());
+
+    bft_assert_counter_eq("test_meta_l4_proto", 0, 4, -1);
 
     // The Fragment header isn't reported as the L4 protocol
     BFT_CHAIN_SET(
@@ -141,8 +152,15 @@ static void meta_l4_proto_eq(void **state)
     bft_assert_prog_run("test_meta_l4_proto", test->hook(), eh,
                         test->verdictDrop());
 
+    // 4 bytes of Fragment header -> l4_proto=0 -> DROP
+    auto frag = bft::Ethernet() / bft::IPv6 {} /
+                bft::IPv6Fragment {.more = true} / bft::UDP {};
+    frag.len -= 8 + 4;
+    bft_assert_prog_run("test_meta_l4_proto", test->hook(), frag,
+                        test->verdictDrop());
+
     bft_assert_counter_eq("test_meta_l4_proto", 0, 1, -1);
-    bft_assert_counter_eq("test_meta_l4_proto", 1, 1, -1);
+    bft_assert_counter_eq("test_meta_l4_proto", 1, 2, -1);
 
     // Negation
     BFT_CHAIN_SET(
