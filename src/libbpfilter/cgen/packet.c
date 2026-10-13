@@ -494,10 +494,13 @@ int bf_packet_gen_inline_log(struct bf_program *program,
                                                    rule->log));
         EMIT(program, BPF_MOV64_IMM(BPF_REG_4, rule->verdict));
 
-        // Pack l3_proto and l4_proto
+        /* Pack l3_proto and l4_proto. r8 is 0 if the L4 header couldn't be
+         * read (e.g. non-first fragments), but bf_runtime.l4_proto is set. */
+        EMIT(program, BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_10,
+                                  BF_PROG_CTX_OFF(l4_proto)));
         EMIT(program, BPF_MOV64_REG(BPF_REG_5, BPF_REG_7));
         EMIT(program, BPF_ALU64_IMM(BPF_LSH, BPF_REG_5, 16));
-        EMIT(program, BPF_ALU64_REG(BPF_OR, BPF_REG_5, BPF_REG_8));
+        EMIT(program, BPF_ALU64_REG(BPF_OR, BPF_REG_5, BPF_REG_0));
 
         EMIT_FIXUP_ELFSTUB(program, BF_ELFSTUB_PKT_LOG);
     }

@@ -95,13 +95,15 @@ static void transportHeader(void **state)
                         bft_hook_drop(BF_HOOK_XDP));
     assert_int_equal(1, ring_buffer__consume(rb));
     assert_int_equal(kTransportLog, capture.entries.back().pkt.headers);
+    assert_int_equal(IPPROTO_TCP, capture.entries.back().l4_proto);
 
-    // GRE isn't parsed by bpfilter: no transport header
+    // GRE isn't parsed by bpfilter: no transport header, but the protocol
     bft_assert_prog_run("test_log_headers", BF_HOOK_XDP,
                         bft::Ethernet() / bft::IPv4 {} / bft::GRE {},
                         bft_hook_drop(BF_HOOK_XDP));
     assert_int_equal(1, ring_buffer__consume(rb));
     assert_int_equal(0, capture.entries.back().pkt.headers);
+    assert_int_equal(IPPROTO_GRE, capture.entries.back().l4_proto);
 
     // First fragment: the transport header is logged
     bft_assert_prog_run("test_log_headers", BF_HOOK_XDP,
@@ -110,14 +112,16 @@ static void transportHeader(void **state)
                         bft_hook_drop(BF_HOOK_XDP));
     assert_int_equal(1, ring_buffer__consume(rb));
     assert_int_equal(kTransportLog, capture.entries.back().pkt.headers);
+    assert_int_equal(IPPROTO_UDP, capture.entries.back().l4_proto);
 
-    // Non-first fragment: no transport header
+    // Non-first fragment: no transport header, but the protocol
     bft_assert_prog_run("test_log_headers", BF_HOOK_XDP,
                         bft::Ethernet() / bft::IPv6 {} /
                             bft::IPv6Fragment {.offset = 181} / bft::UDP {},
                         bft_hook_drop(BF_HOOK_XDP));
     assert_int_equal(1, ring_buffer__consume(rb));
     assert_int_equal(0, capture.entries.back().pkt.headers);
+    assert_int_equal(IPPROTO_UDP, capture.entries.back().l4_proto);
 
     bft_assert_counter_eq("test_log_headers", 0, 4, -1);
 
