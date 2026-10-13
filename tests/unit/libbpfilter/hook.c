@@ -328,6 +328,49 @@ static void hookopts_parse_priorities(void **state)
     }
 }
 
+static void hookopts_parse_defrag(void **state)
+{
+    (void)state;
+
+    {
+        _free_bf_hookopts_ struct bf_hookopts *hookopts = NULL;
+        char opt1[] = "defrag=yes";
+        char opt2[] = "defrag=no";
+
+        assert_ok(bf_hookopts_new(&hookopts));
+        assert_ok(bf_hookopts_parse_opt(hookopts, opt1));
+        assert_true(hookopts->defrag);
+        assert_true(bf_hookopts_is_used(hookopts, BF_HOOKOPTS_DEFRAG));
+
+        // Can't overwrite an option
+        assert_err(bf_hookopts_parse_opt(hookopts, opt2));
+        assert_true(hookopts->defrag);
+    }
+
+    {
+        _free_bf_hookopts_ struct bf_hookopts *hookopts = NULL;
+        char opt[] = "defrag=no";
+
+        assert_ok(bf_hookopts_new(&hookopts));
+        assert_ok(bf_hookopts_parse_opt(hookopts, opt));
+        assert_false(hookopts->defrag);
+        assert_true(bf_hookopts_is_used(hookopts, BF_HOOKOPTS_DEFRAG));
+    }
+
+    {
+        _free_bf_hookopts_ struct bf_hookopts *hookopts = NULL;
+        char opt1[] = "defrag=1";
+        char opt2[] = "defrag=";
+        char opt3[] = "defrag=YES";
+
+        assert_ok(bf_hookopts_new(&hookopts));
+        assert_err(bf_hookopts_parse_opt(hookopts, opt1));
+        assert_err(bf_hookopts_parse_opt(hookopts, opt2));
+        assert_err(bf_hookopts_parse_opt(hookopts, opt3));
+        assert_false(bf_hookopts_is_used(hookopts, BF_HOOKOPTS_DEFRAG));
+    }
+}
+
 static void hookopts_parse_unknown(void **state)
 {
     _free_bf_hookopts_ struct bf_hookopts *hookopts = NULL;
@@ -520,6 +563,28 @@ static void hookopts_validate_nf(void **state)
         assert_ok(bf_hookopts_validate(hookopts, BF_HOOK_NF_LOCAL_OUT));
         assert_ok(bf_hookopts_validate(hookopts, BF_HOOK_NF_POST_ROUTING));
     }
+
+    // defrag is only supported by Netfilter hooks
+    {
+        _free_bf_hookopts_ struct bf_hookopts *hookopts = NULL;
+        char opt1[] = "priorities=100-200";
+        char opt2[] = "defrag=yes";
+        assert_ok(bf_hookopts_new(&hookopts));
+        assert_ok(bf_hookopts_parse_opt(hookopts, opt1));
+        assert_ok(bf_hookopts_parse_opt(hookopts, opt2));
+        assert_ok(bf_hookopts_validate(hookopts, BF_HOOK_NF_LOCAL_IN));
+    }
+
+    {
+        _free_bf_hookopts_ struct bf_hookopts *hookopts = NULL;
+        char opt1[] = "ifindex=1";
+        char opt2[] = "defrag=yes";
+        assert_ok(bf_hookopts_new(&hookopts));
+        assert_ok(bf_hookopts_parse_opt(hookopts, opt1));
+        assert_ok(bf_hookopts_validate(hookopts, BF_HOOK_XDP));
+        assert_ok(bf_hookopts_parse_opt(hookopts, opt2));
+        assert_err(bf_hookopts_validate(hookopts, BF_HOOK_XDP));
+    }
 }
 
 static void hookopts_pack_and_unpack(void **state)
@@ -535,6 +600,7 @@ static void hookopts_pack_and_unpack(void **state)
     char opt2[] = "cgpath=/sys/fs/cgroup";
     char opt3[] = "family=inet4";
     char opt4[] = "priorities=100-200";
+    char opt5[] = "defrag=yes";
 
     (void)state;
 
@@ -544,6 +610,7 @@ static void hookopts_pack_and_unpack(void **state)
     assert_ok(bf_hookopts_parse_opt(source, opt2));
     assert_ok(bf_hookopts_parse_opt(source, opt3));
     assert_ok(bf_hookopts_parse_opt(source, opt4));
+    assert_ok(bf_hookopts_parse_opt(source, opt5));
 
     // Pack the source
     assert_ok(bf_wpack_new(&wpack));
@@ -563,7 +630,42 @@ static void hookopts_pack_and_unpack(void **state)
     assert_int_equal(destination->family, source->family);
     assert_int_equal(destination->priorities[0], source->priorities[0]);
     assert_int_equal(destination->priorities[1], source->priorities[1]);
+    assert_true(destination->defrag);
     assert_int_equal(destination->used_opts, source->used_opts);
+}
+
+static void hookopts_unpack_without_defrag(void **state)
+{
+    _free_bf_hookopts_ struct bf_hookopts *destination = NULL;
+    _free_bf_wpack_ bf_wpack_t *wpack = NULL;
+    _free_bf_rpack_ bf_rpack_t *rpack = NULL;
+    bf_rpack_node_t node;
+    const void *data;
+    size_t data_len;
+
+    (void)state;
+
+    // Hook options serialized before defrag= was introduced
+    assert_ok(bf_wpack_new(&wpack));
+    bf_wpack_open_object(wpack, "hookopts");
+    bf_wpack_kv_nil(wpack, "ifindex");
+    bf_wpack_kv_nil(wpack, "cgpath");
+    bf_wpack_kv_nil(wpack, "family");
+    bf_wpack_open_array(wpack, "priorities");
+    bf_wpack_int(wpack, 100);
+    bf_wpack_int(wpack, 200);
+    bf_wpack_close_array(wpack);
+    bf_wpack_close_object(wpack);
+    assert_ok(bf_wpack_get_data(wpack, &data, &data_len));
+
+    assert_ok(bf_rpack_new(&rpack, data, data_len));
+    assert_ok(bf_rpack_kv_obj(bf_rpack_root(rpack), "hookopts", &node));
+    assert_ok(bf_hookopts_new_from_pack(&destination, node));
+
+    assert_int_equal(destination->priorities[0], 100);
+    assert_int_equal(destination->priorities[1], 200);
+    assert_false(destination->defrag);
+    assert_false(bf_hookopts_is_used(destination, BF_HOOKOPTS_DEFRAG));
 }
 
 static void hookopts_pack_empty(void **state)
@@ -622,6 +724,7 @@ static void hookopts_dump_all_options(void **state)
     char opt2[] = "cgpath=/sys/fs/cgroup";
     char opt3[] = "family=inet4";
     char opt4[] = "priorities=100-200";
+    char opt5[] = "defrag=yes";
     prefix_t prefix = {};
 
     (void)state;
@@ -632,6 +735,7 @@ static void hookopts_dump_all_options(void **state)
     assert_ok(bf_hookopts_parse_opt(hookopts, opt2));
     assert_ok(bf_hookopts_parse_opt(hookopts, opt3));
     assert_ok(bf_hookopts_parse_opt(hookopts, opt4));
+    assert_ok(bf_hookopts_parse_opt(hookopts, opt5));
 
     // Verify dump with all options doesn't crash
     bf_hookopts_dump(hookopts, &prefix);
@@ -746,6 +850,7 @@ int main(void)
         cmocka_unit_test(hookopts_parse_cgpath),
         cmocka_unit_test(hookopts_parse_family),
         cmocka_unit_test(hookopts_parse_priorities),
+        cmocka_unit_test(hookopts_parse_defrag),
         cmocka_unit_test(hookopts_parse_unknown),
         cmocka_unit_test(hookopts_parse_invalid_format),
         cmocka_unit_test(hookopts_validate_xdp),
@@ -754,6 +859,7 @@ int main(void)
         cmocka_unit_test(hookopts_validate_cgroup_sock_addr),
         cmocka_unit_test(hookopts_validate_nf),
         cmocka_unit_test(hookopts_pack_and_unpack),
+        cmocka_unit_test(hookopts_unpack_without_defrag),
         cmocka_unit_test(hookopts_pack_empty),
         cmocka_unit_test(hookopts_dump),
         cmocka_unit_test(hookopts_dump_all_options),

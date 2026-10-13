@@ -59,6 +59,10 @@ Hook options
      - ``BF_HOOK_NF_*``
      - N/A
      - ``INT1`` and ``INT2`` are different non-zero integers. Priority values to use when attaching the chain. Two values are required to ensure atomic update of the chain.
+   * - ``defrag=$BOOL``
+     - N/A
+     - ``BF_HOOK_NF_*``
+     - ``yes`` or ``no`` (default). If ``yes``, the kernel reassembles IPv4 and IPv6 fragments before the chain, so it filters complete datagrams, without enabling conntrack. Requires a kernel with ``BPF_F_NETFILTER_IP_DEFRAG`` (Linux 6.6 or later).
 
 Example
 -------

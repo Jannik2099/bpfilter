@@ -113,7 +113,7 @@ Meta
 
     Only the first fragment of a datagram contains the L4 header. ``meta.l4_proto`` matches the protocol of every fragment, as nftables' ``meta l4proto`` does, and so does ``ip6.nexthdr``. The matchers reading the L4 header (ports, TCP flags, ICMP type and code) don't match the other fragments.
 
-    A chain filtering on ports can use ``meta.frag`` to accept the other fragments of the datagrams it accepts (see :doc:`../explanation/hooks` for the hooks seeing fragments):
+    A Netfilter chain can use the ``defrag=yes`` hook option to filter complete datagrams instead (see :doc:`hooks`). Otherwise, a chain filtering on ports can use ``meta.frag`` to accept the other fragments of the datagrams it accepts (see :doc:`../explanation/hooks` for the hooks seeing fragments):
 
     .. code-block:: shell
 
